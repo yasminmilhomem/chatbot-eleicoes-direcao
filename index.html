@@ -1,0 +1,254 @@
+<style>
+:root {
+  --bg:#e5ddd5;
+  --panel:#ffffff;
+  --accent:#25D366;
+  --me:#daf8cb;
+  --them:#ffffff;
+  --muted:#999;
+}
+
+/* ===== Botão flutuante ===== */
+#chatbot-toggle{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:#25D366;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  z-index:10000;
+  box-shadow:0 4px 8px rgba(0,0,0,0.2);
+  transition:all 0.3s ease;
+}
+#chatbot-toggle img{width:28px;height:28px}
+
+/* ===== Texto flutuante ===== */
+#chatbot-hint{
+  position:fixed;
+  bottom:90px;
+  right:20px;
+  background:#fff;
+  color:#333;
+  font-size:14px;
+  padding:8px 12px;
+  border-radius:8px;
+  box-shadow:0 4px 8px rgba(0,0,0,0.15);
+  max-width:220px;
+  font-family:Segoe UI, Roboto, Arial, sans-serif;
+  z-index:10000;
+  opacity:0;
+  animation:fadeIn 1s ease forwards, pulse 2s infinite 1.5s;
+}
+#chatbot-hint::after{
+  content:"";
+  position:absolute;
+  bottom:-8px;
+  right:24px;
+  border-width:8px;
+  border-style:solid;
+  border-color:#fff transparent transparent transparent;
+}
+
+/* Animações */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+
+/* ===== Janela do Chatbot ===== */
+.chatbot-wrapper{
+  position:fixed;
+  bottom:90px;
+  right:20px;
+  width:360px;
+  height:640px;
+  display:none;
+  z-index:10001;
+}
+.chat-container{
+  width:100%;
+  height:100%;
+  background:linear-gradient(#f6f6f6,#efefef);
+  box-shadow:0 10px 30px rgba(0,0,0,0.15);
+  border-radius:12px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  font-family:Segoe UI, Roboto, Arial, sans-serif
+}
+.header{height:72px;background:linear-gradient(90deg,#075E54,#128C7E);color:#fff;padding:12px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.header .avatar{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#128C7E;flex-shrink:0}
+.header .title{font-weight:600}
+.header .sub{font-size:12px;color:rgba(255,255,255,0.9)}
+.messages{flex:1;padding:16px;display:flex;flex-direction:column;gap:10px;overflow:auto;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="%23e5ddd5"/></svg>')}
+.msg{max-width:78%;padding:10px 12px;border-radius:10px;box-shadow:0 1px 0 rgba(0,0,0,0.06);word-break:break-word;opacity:0;transform:translateY(8px);animation:pop .18s forwards}
+.msg.me{align-self:flex-end;background:var(--me);border-bottom-right-radius:2px}
+.msg.bot{align-self:flex-start;background:var(--them);border-bottom-left-radius:2px}
+@keyframes pop{to{opacity:1;transform:none}}
+.typing{display:flex;gap:4px;align-items:center;padding:6px 10px;border-radius:10px;background:var(--them);max-width:40%}
+.typing .dot{width:6px;height:6px;border-radius:50%;background:#999;animation:blink 1s infinite}
+.typing .dot:nth-child(2){animation-delay:.15s}
+.typing .dot:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%{opacity:.2}50%{opacity:1}100%{opacity:.2}}
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.suggestion{background:#fff;padding:6px 10px;border-radius:18px;border:1px solid #e6e6e6;cursor:pointer;font-size:13px}
+</style>
+
+<!-- Botão -->
+<div id="chatbot-toggle" aria-label="Abrir Chatbot">
+  <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" alt="Chat" />
+</div>
+
+<!-- Texto acima do botão -->
+<div id="chatbot-hint">Clique aqui para tirar dúvidas das eleições</div>
+
+<!-- Janela do Chatbot -->
+<div class="chatbot-wrapper" id="chatbot-wrapper" role="dialog" aria-label="Chatbot UEMASUL">
+  <div class="chat-container" id="chat">
+    <div class="header">
+      <div class="avatar">
+        <img src="http://www.uemasul.edu.br/wp-content/uploads/2019/11/uemasul_brasao_colorido-261x300.png" alt="UEMASUL" style="width:70%;height:auto;">
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="title">Eleições 2025 - Direção de Curso</div>
+        <div class="sub">Online • Última vez agora</div>
+      </div>
+    </div>
+    <div id="messages" class="messages" role="log" aria-live="polite"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const wrapper = document.getElementById('chatbot-wrapper');
+  const toggle = document.getElementById('chatbot-toggle');
+  const hint = document.getElementById('chatbot-hint');
+  const messagesEl = document.getElementById('messages');
+
+  // ===== MAPA DE RESPOSTAS =====
+  const respostas = {
+    "eleições": {
+      reply: "As eleições para Direção de Curso seguem o regulamento da UEMASUL. Elas ocorrem em 2025. Deseja informações sobre prazos, documentação ou elegibilidade?",
+      suggestions: ["Prazos", "Documentação", "Elegibilidade", "Candidatos"]
+    },
+    "candidatos": {
+      reply: "A lista oficial de candidatos é publicada pela comissão eleitoral. Você quer a lista ou critérios de inscrição?",
+      suggestions: ["Lista", "Critérios", "Como me inscrever"]
+    },
+    "impugnação": {
+      reply: "Impugnação deve ser formalizada por escrito à comissão eleitoral, com provas e no prazo do edital. Precisa de um modelo?",
+      suggestions: ["Modelo de recurso", "Prazos", "Comissão eleitoral"]
+    },
+    "prazos": {
+      reply: "Prazos variam por edital. Verifique na secretaria do curso ou site institucional.",
+      suggestions: []
+    },
+    "documentação": {
+      reply: "Documentos comuns: requerimento de inscrição, RG/CPF, comprovante de vínculo e plano de trabalho (quando exigido).",
+      suggestions: []
+    },
+    "inscrição": {
+      reply: "Leia o edital, preencha o formulário e entregue os documentos exigidos dentro do prazo.",
+      suggestions: []
+    },
+    "sair": {
+      reply: "Obrigado por usar o ChatBot UEMASUL! Até logo 👋",
+      suggestions: []
+    }
+  };
+
+  toggle.addEventListener('click', ()=>{
+    const isOpen = wrapper.style.display === 'flex';
+    if (isOpen) {
+      wrapper.style.display = 'none';
+      hint.style.display = 'block';
+    } else {
+      wrapper.style.display = 'flex';
+      hint.style.display = 'none';
+    }
+  });
+
+  function addMessage(text, who='bot', options={suggestions:[]}) {
+    const el = document.createElement('div');
+    el.className = 'msg ' + (who==='me' ? 'me' : 'bot');
+    el.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+    messagesEl.appendChild(el);
+    if (options.suggestions && options.suggestions.length) {
+      const sugWrap = document.createElement('div');
+      sugWrap.className = 'suggestions';
+      options.suggestions.concat(['Sair']).forEach(s => {
+        const b = document.createElement('div');
+        b.className = 'suggestion';
+        b.textContent = s;
+        b.onclick = ()=> sendMessage(s);
+        sugWrap.appendChild(b);
+      });
+      messagesEl.appendChild(sugWrap);
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function escapeHtml(unsafe) {
+    return String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function showTypingIndicator(){
+    const el = document.createElement('div');
+    el.className = 'msg bot typing-indicator';
+    el.innerHTML = `<div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  function getBotReply(userText){
+    const t = userText.trim().toLowerCase();
+
+    // procura resposta exata no mapa
+    if (respostas[t]) {
+      return respostas[t];
+    }
+
+    // fallback
+    return { 
+      reply: "Não entendi completamente. Escolha uma opção abaixo ou pergunte de outra forma.", 
+      suggestions: ["Eleições", "Candidatos", "Impugnação", "Prazos"] 
+    };
+  }
+
+  function sendMessage(text){
+    if (!text || !text.trim()) return;
+    addMessage(text, 'me');
+
+    if (text.toLowerCase() === 'sair') {
+      addMessage(respostas["sair"].reply, 'bot');
+      setTimeout(()=> { wrapper.style.display = 'none'; hint.style.display = 'block'; }, 2000);
+      return;
+    }
+
+    const typingEl = showTypingIndicator();
+    setTimeout(()=>{
+      typingEl.remove();
+      const res = getBotReply(text);
+      addMessage(res.reply, 'bot', {suggestions: res.suggestions});
+    }, 700 + Math.random()*400);
+  }
+
+  // Mensagem inicial
+  window.addEventListener('load', ()=> {
+    setTimeout(()=>{
+      addMessage('👋 Olá! Escolha uma das opções abaixo e tire suas dúvidas sobre as eleições para direção de cursos da UEMASUL.', 'bot', {
+        suggestions: ['Eleições', 'Candidatos', 'Impugnação']
+      });
+    }, 300);
+  });
+})();
+</script>
